@@ -1,0 +1,26 @@
+function refocusApp(rgb_stack, depth_map)
+
+    imshow(rgb_stack(:,:,1:3))
+    msgbox('Press Enter to End');
+    msgbox('Click anywhere, like the bottle or the people, to focus');
+
+    rbg_size = size(rgb_stack);
+    height_max = rbg_size(2);
+    width_max = rbg_size(1);
+
+    pause(4.21);
+    [width,height] = ginput(1);
+    while True
+        
+        img_depth = depth_map(ceil(height), ceil(width));
+        j = img_depth * 3;
+        imshow(rgb_stack(:,:,j-2:j));
+        pause(2.1);
+        [width,height] = ginput(1);
+        ~isempty(width) && ~isempty(height) && ceil(width) <= width_max && ceil(height) <= height_max
+        true_val1 = ceil(width) <= width_max && ceil(height) <= height_max;
+        
+    end
+
+
+end

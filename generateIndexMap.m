@@ -1,0 +1,127 @@
+function index_map = generateIndexMap(gray_stack, w_size)
+    [H, W, N] = size(gray_stack);
+    
+    % Compute the focus measure -- the sum-modified laplacian
+    %
+    % horizontal Laplacian kernel
+    Kx = [0.25 0 0.25;...
+           1  -3   1; ...
+          0.25 0 0.25];
+    Ky = Kx';   % vertical version
+    
+    % horizontal and vertical Laplacian responses
+    Lx = zeros(H, W, N);
+    Ly = zeros(H, W, N);
+    for n = 1:N
+        I = im2double(gray_stack(:,:,n));
+        Lx(:,:,n) = imfilter(I, Kx, 'replicate', 'same', 'corr');
+        Ly(:,:,n) = imfilter(I, Ky, 'replicate', 'same', 'corr');
+    end
+    
+    % sum-modified Laplacian
+    SML = (abs(Lx) .^ 2) + (abs(Ly) .^ 2);
+    % can also use the absolute value itself
+    % this is probably more well-known
+    % SML = abs(Lx) + abs(Ly);
+       
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % Write a program named generateIndexMap that generates an index map from a focal
+    % stack. An index map is an image with each pixel corresponding to a scene point
+    % ADD YOUR CODE HERE
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    L = zeros(H,W, N);
+    filter_edge_dim = 25;   % dim x dim   convolution matrix
+    gaussian_spread = 1;       % how spread out the gaussian filter is
+    gaussian_filter = fspecial('gaussian', filter_edge_dim, gaussian_spread);
+    SML_var = imfilter(SML, gaussian_filter);
+
+
+    SML_sums = cumsum(cumsum(SML_var, 1), 2);
+
+    % Scan over all windows of N
+    for img=1:N
+        %  Scan over heights
+        for y=1:H
+            lower = y + w_size;
+
+            upper = y - w_size; 
+
+            %Change values depending onif
+            % The image is now out of the window
+            if (lower > H)
+                lower = H;
+            end 
+            if (upper < 1)
+                upper = 0;
+            end
+
+
+            % helper function call
+            % Looping through distances within the Widths
+
+            getWidths(upper, lower, L, SML_sums, img);
+    
+        end
+    end
+
+    % find best-focused photo at each pixel
+    [~, single_layer_idx_map] = max(L, [], 3);
+    index_map = single_layer_idx_map;
+% 
+%     % should not be the case
+%     if (SINGLE_PIXEL == 0)
+%         % this would work if the window size were 1x1 (single pixel at a time)
+%         [~, index_map] = max(SML_var, [], 3);
+%     end
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+end
+
+function getWidths(upper, lower, L, SML_sums, img)
+            for x=1:W
+                
+                right = x + w_size;
+                left  = x - w_size;
+               
+                if (right > W)
+                    right = W;
+                end
+                if (left < 1)
+                    left = 0;
+                end
+
+                area = (right - left) * (lower - upper);
+
+               %retrieve the upper left edge
+                if upper == 0 &&  lower  == 0
+                        L(y,x,img) = SML_sums(lower, right, img) ...
+                                        / area;
+                % Retrieve the upper right edge
+                else
+                   if (upper == 0)
+                    L(y,x,img) = (SML_sums(lower, right, img) ...
+                                             - SML_sums(lower, left, img)) ...
+                                             / area;
+                    else
+                    % Retreive the left edge
+                        if (left == 0)
+                            L(y,x,img) = (SML_sums(lower, right, img)  ...
+                                                     - SML_sums(upper, right, img)) ...
+                                                     / area;
+                        else     
+                               %retreive the right edge
+                              if(right == 0)
+                                L(y,x,img) = (SML_sums(lower, right, img)  ...
+                                                         - SML_sums(lower, left, img)   ...
+                                                         - SML_sums(upper, right, img)  ...
+                                                         + SML_sums(upper, left, img))  ...
+                                                         / area;
+                              end
+                           
+                       end
+                    end
+               end
+
+
+         end
+end
